@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TF Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="page-shell">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">Live Intelligence Dashboard</p>
+        <h1>TF Family Dashboard</h1>
+        <p class="hero-copy">
+          Live metrics, ranking changes, and zoomed comparison views for the current member tracking data.
+        </p>
+      </div>
+      <div class="hero-meta">
+        <div class="status-pill">
+          <span class="status-dot"></span>
+          <span id="refresh-status">Connecting to data source</span>
+        </div>
+        <p id="last-updated">Last updated: -</p>
+      </div>
+    </header>
+
+    <main class="dashboard-grid">
+      <section class="panel metrics-panel">
+        <div class="panel-header">
+          <h2>Overview</h2>
+          <button id="refresh-button" class="refresh-button" type="button">Refresh</button>
+        </div>
+        <div class="metrics-grid">
+          <article class="metric-card">
+            <span class="metric-label">Members</span>
+            <strong id="metric-members">-</strong>
+          </article>
+          <article class="metric-card">
+            <span class="metric-label">Total Fans</span>
+            <strong id="metric-total-fans">-</strong>
+          </article>
+          <article class="metric-card">
+            <span class="metric-label">Total Growth</span>
+            <strong id="metric-total-growth">-</strong>
+          </article>
+          <article class="metric-card">
+            <span class="metric-label">Latest Round</span>
+            <strong id="metric-recent-growth">-</strong>
+          </article>
+        </div>
+      </section>
+
+      <section class="panel insights-panel">
+        <div class="panel-header">
+          <h2>Insights</h2>
+        </div>
+        <div id="insights-list" class="insights-list"></div>
+      </section>
+
+      <section class="panel chart-panel full-span">
+        <div class="panel-header">
+          <h2>Total Fans Trend</h2>
+        </div>
+        <div id="fans-chart" class="chart"></div>
+      </section>
+
+      <section class="panel chart-panel full-span">
+        <div class="panel-header stacked-header">
+          <div>
+            <h2>Focus Zoom Trend</h2>
+            <p id="focus-group-caption" class="panel-caption">The dashboard auto-selects the closest cluster. You can also choose members manually below.</p>
+          </div>
+          <div class="focus-actions">
+            <button id="focus-auto-button" class="ghost-button" type="button">Use Auto Group</button>
+            <button id="focus-apply-button" class="refresh-button" type="button">Apply Selection</button>
+          </div>
+        </div>
+        <div class="focus-picker">
+          <p class="focus-picker-label">Manual focus members</p>
+          <div id="focus-member-picker" class="focus-member-picker"></div>
+        </div>
+        <div id="focus-chart" class="chart"></div>
+      </section>
+
+      <section class="panel chart-panel full-span">
+        <div class="panel-header">
+          <h2>Relative Growth Trend</h2>
+        </div>
+        <div id="growth-chart" class="chart"></div>
+      </section>
+
+      <section class="panel ranking-panel full-span">
+        <div class="panel-header">
+          <h2>Ranking</h2>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Member</th>
+                <th>Fans</th>
+                <th>Gap To Prev</th>
+                <th>Total Growth</th>
+                <th>Latest Growth</th>
+                <th>Collects</th>
+                <th>Likes</th>
+                <th>Sample Time</th>
+              </tr>
+            </thead>
+            <tbody id="ranking-body"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>
