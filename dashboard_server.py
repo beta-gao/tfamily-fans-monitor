@@ -1,6 +1,7 @@
 import argparse
 import csv
 import json
+import os
 from collections import defaultdict
 from datetime import datetime
 from http import HTTPStatus
@@ -10,8 +11,10 @@ from urllib.parse import urlparse
 
 
 BASE_DIR = Path(__file__).resolve().parent
-CSV_FILE = BASE_DIR / "tf_family_fans_multi.csv"
-STATIC_DIR = BASE_DIR / "web"
+CSV_FILE = Path(os.environ.get("TF_CSV_FILE", str(BASE_DIR / "tf_family_fans_multi.csv")))
+STATIC_DIR = Path(os.environ.get("TF_STATIC_DIR", str(BASE_DIR / "web")))
+DEFAULT_HOST = os.environ.get("TF_DASHBOARD_HOST", "127.0.0.1")
+DEFAULT_PORT = int(os.environ.get("PORT", os.environ.get("TF_DASHBOARD_PORT", "8000")))
 TIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 
@@ -84,12 +87,11 @@ def build_focus_group(ranking, fan_trend_series):
             0,
         )
         end_index = start_index + len(focus_window) - 1
-
         left_gap = None
+        right_gap = None
+
         if start_index > 0:
             left_gap = ranking[start_index - 1]["fans_num"] - focus_window[0]["fans_num"]
-
-        right_gap = None
         if end_index < len(ranking) - 1:
             right_gap = focus_window[-1]["fans_num"] - ranking[end_index + 1]["fans_num"]
 
@@ -100,10 +102,7 @@ def build_focus_group(ranking, fan_trend_series):
             focus_window = [ranking[start_index - 1]] + focus_window
 
     focus_tags = {item["tag"] for item in focus_window}
-    focus_series = [
-        series for series in fan_trend_series
-        if series["name"] in focus_tags
-    ]
+    focus_series = [series for series in fan_trend_series if series["name"] in focus_tags]
     focus_summary = {
         "tags": [item["tag"] for item in focus_window],
         "span": focus_window[0]["fans_num"] - focus_window[-1]["fans_num"],
@@ -163,23 +162,15 @@ def summarize_dashboard(rows):
         growth_trend_series.append(
             {
                 "name": tag,
-                "data": [
-                    [item["time_label"], item["fans_num"] - first["fans_num"]]
-                    for item in items
-                ],
+                "data": [[item["time_label"], item["fans_num"] - first["fans_num"]] for item in items],
             }
         )
 
     ranking.sort(key=lambda item: item["fans_num"], reverse=True)
-
     for index, item in enumerate(ranking):
-        if index == 0:
-            item["gap_to_previous"] = None
-        else:
-            item["gap_to_previous"] = ranking[index - 1]["fans_num"] - item["fans_num"]
+        item["gap_to_previous"] = None if index == 0 else ranking[index - 1]["fans_num"] - item["fans_num"]
 
     focus_series, focus_summary = build_focus_group(ranking, fan_trend_series)
-
     leader = ranking[0] if ranking else None
     fastest_recent = max(ranking, key=lambda item: item["recent_growth"], default=None)
     strongest_total = max(ranking, key=lambda item: item["total_growth"], default=None)
@@ -198,10 +189,7 @@ def summarize_dashboard(rows):
         insights.append(
             {
                 "title": "最近冲刺最快",
-                "content": (
-                    f'{fastest_recent["tag"]} 在最近一次采样中新增 '
-                    f'{fastest_recent["recent_growth"]:,} 粉丝。'
-                ),
+                "content": f'{fastest_recent["tag"]} 在最近一次采样中新增 {fastest_recent["recent_growth"]:,} 粉丝。',
                 "tone": "positive",
             }
         )
@@ -209,10 +197,7 @@ def summarize_dashboard(rows):
         insights.append(
             {
                 "title": "累计涨幅最佳",
-                "content": (
-                    f'{strongest_total["tag"]} 自监控开始以来累计增长 '
-                    f'{strongest_total["total_growth"]:,} 粉丝。'
-                ),
+                "content": f'{strongest_total["tag"]} 自监控开始以来累计增长 {strongest_total["total_growth"]:,} 粉丝。',
                 "tone": "positive",
             }
         )
@@ -220,10 +205,7 @@ def summarize_dashboard(rows):
         insights.append(
             {
                 "title": "波动提醒",
-                "content": (
-                    f'{weakest_recent["tag"]} 最近一次采样增长为 '
-                    f'{weakest_recent["recent_growth"]:,}，建议关注数据波动或异常。'
-                ),
+                "content": f'{weakest_recent["tag"]} 最近一次采样增长为 {weakest_recent["recent_growth"]:,}，建议关注数据波动或异常。',
                 "tone": "warning",
             }
         )
@@ -257,19 +239,14 @@ class DashboardHandler(SimpleHTTPRequestHandler):
 
     def do_GET(self):
         parsed = urlparse(self.path)
-
         if parsed.path == "/api/health":
             self.respond_json({"status": "ok"})
             return
-
         if parsed.path == "/api/dashboard":
-            data = summarize_dashboard(load_rows(CSV_FILE))
-            self.respond_json(data)
+            self.respond_json(summarize_dashboard(load_rows(CSV_FILE)))
             return
-
         if parsed.path == "/":
             self.path = "/index.html"
-
         return super().do_GET()
 
     def log_message(self, format, *args):
@@ -287,12 +264,13 @@ class DashboardHandler(SimpleHTTPRequestHandler):
 
 def main():
     parser = argparse.ArgumentParser(description="TF family dashboard server")
-    parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", default=8000, type=int)
+    parser.add_argument("--host", default=DEFAULT_HOST)
+    parser.add_argument("--port", default=DEFAULT_PORT, type=int)
     args = parser.parse_args()
 
     server = ThreadingHTTPServer((args.host, args.port), DashboardHandler)
     print(f"Dashboard running at http://{args.host}:{args.port}")
+    print(f"Reading CSV from {CSV_FILE}")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

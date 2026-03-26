@@ -1,0 +1,17 @@
+[Unit]
+Description=TF Spider Collector
+After=network.target
+
+[Service]
+User=ubuntu
+WorkingDirectory=/home/ubuntu/tf-dashboard
+Environment="PYTHONUNBUFFERED=1"
+Environment="TF_AUTH_TOKEN=replace-with-your-token"
+Environment="TF_CSV_FILE=/home/ubuntu/tf-dashboard/tf_family_fans_multi.csv"
+Environment="TF_POLL_INTERVAL_SECONDS=150"
+ExecStart=/home/ubuntu/tf-dashboard/.venv/bin/python /home/ubuntu/tf-dashboard/spider.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

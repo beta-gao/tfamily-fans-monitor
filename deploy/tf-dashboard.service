@@ -1,0 +1,17 @@
+[Unit]
+Description=TF Dashboard Web Service
+After=network.target
+
+[Service]
+User=ubuntu
+WorkingDirectory=/home/ubuntu/tf-dashboard
+Environment="PYTHONUNBUFFERED=1"
+Environment="TF_CSV_FILE=/home/ubuntu/tf-dashboard/tf_family_fans_multi.csv"
+Environment="TF_DASHBOARD_HOST=127.0.0.1"
+Environment="TF_DASHBOARD_PORT=8000"
+ExecStart=/home/ubuntu/tf-dashboard/.venv/bin/python /home/ubuntu/tf-dashboard/dashboard_server.py
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

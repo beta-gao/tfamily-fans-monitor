@@ -1,18 +1,21 @@
-import requests
 import csv
+import os
 import time
 from datetime import datetime
 from pathlib import Path
 
-BASE_URL = "https://app.tfent.cn/member-v2/query/detail"
-POLL_INTERVAL_SECONDS = 150
-CSV_FILE = "tf_family_fans_multi.csv"
+import requests
 
-HEADERS = {
-    "User-Agent": "TFFanclub/5.0.1 (iPhone; iOS 18.5; Scale/3.00)",
-    "Authorization": "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJjdXJyZW50VXNlciI6eyJ1c2VySWQiOjIyMTU5NTM2LCJzeXNDb2RlIjoidGYiLCJhY2NvdW50IjoiOUE4QkQyMjI0ODE4NDcxQkE0QzFGMDEzODI1NTREQjciLCJhY2NvdW50VHlwZSI6MiwiY29tcGFueUlkIjoyLCJpbnRlcmlvcklkIjpudWxsLCJtYWluT3JnSWQiOm51bGwsInBsYXRmb3JtIjoxLCJvcmdJZCI6bnVsbCwib3JnSWRzIjpudWxsLCJkZXZpY2VDb2RlIjpudWxsLCJvcGVuSWQiOiJvZnhOejZ1U095OEhPa3g2ZWZHSGdxM1c4dFRBIiwiYXBwbGV0T3BlbklkIjoibzcxWjU1VGxreHRWdGVQV2FGOU5hbVFoQlhmWSIsInBob25lIjoiMTUxNjcxNjg3MTEiLCJlbWFpbCI6bnVsbCwibmlja05hbWUiOiIiLCJjb21wYW55TmFtZSI6IlRGIiwib3JnTmFtZSI6bnVsbCwidXNlcktpbmQiOjIsInBsYXRmb3JtQ29tcGFueUlkIjoyLCJwbGF0Zm9ybU9yZ0lkIjozNSwicGxhdGZvcm1Db21wYW55TmFtZSI6IlRGIiwicGxhdGZvcm1PcmdOYW1lIjoiVEYiLCJyb2xlVHlwZSI6bnVsbCwiY2hhbm5lbCI6MywibG9naW5QbGF0Zm9ybSI6LTF9LCJjb2RlIjoyMDAsInVzZXJfbmFtZSI6IjlBOEJEMjIyNDgxODQ3MUJBNEMxRjAxMzgyNTU0REI3Iiwic2NvcGUiOlsiYXBwIl0sImV4cCI6MTc3Njc4ODg1MSwiZXhwaXJhdGlvbl9kYXRlIjoxNzc2Nzg4ODUxNDkwLCJqdGkiOiIyZDFjNDIxOC1hNzgxLTQ1ODYtOGU4YS1kZDgwOGM4YzYzZmMiLCJjbGllbnRfaWQiOiJ0ZiJ9.aQP736IN0hHxSbfuhLTg8G75_YlOq9NE05Xi2wA2GEFub2zCbvZyH7zjzuVpkmvx2EzZ8kKxtrmRCTu0gS2UlP64NC-6SkkzburLVUzSLJM8eKXE0JGIxVVt1__1cfb1rpuyvrzjr4HqYRMFnEF2HYlOZRkJxt6H_MpvnTPJSLLWe5Wat-Mdyg5J_eHechZBGdKfFp_ngVjojCc8k493bzhshGzoMJXbKHZgP6soNlOjwXAdSQcF2-n15YQOUrrv9Qy-UQVyAf8kr2o_C8ogo6au-DMPMOjfYHxwnLOszYl9b0xp3liPddlUzLrgX0VBVIys44OMpDqWpuVXQDQhMw",
-    "Accept-Language": "zh-Hans-CA"
-}
+
+BASE_URL = "https://app.tfent.cn/member-v2/query/detail"
+CSV_FILE = Path(os.environ.get("TF_CSV_FILE", "tf_family_fans_multi.csv"))
+POLL_INTERVAL_SECONDS = int(os.environ.get("TF_POLL_INTERVAL_SECONDS", "150"))
+AUTH_TOKEN = os.environ.get("TF_AUTH_TOKEN")
+USER_AGENT = os.environ.get(
+    "TF_USER_AGENT",
+    "TFFanclub/5.0.1 (iPhone; iOS 18.5; Scale/3.00)",
+)
+ACCEPT_LANGUAGE = os.environ.get("TF_ACCEPT_LANGUAGE", "zh-Hans-CA")
 
 TARGETS = [
     {"tag": "", "user_id": 16823136},
@@ -24,72 +27,83 @@ TARGETS = [
     {"tag": "", "user_id": 16823140},
     {"tag": "", "user_id": 16823153},
     {"tag": "", "user_id": 18865488},
-    {"tag": "", "user_id": 16823123}
+    {"tag": "", "user_id": 16823123},
 ]
 
-def ensure_csv_exists(csv_path):
-    path = Path(csv_path)
-    if not path.exists():
-        with open(csv_path, "w", newline="", encoding="utf-8-sig") as f:
-            writer = csv.writer(f)
-            writer.writerow([
-                "time",
-                "tag",
-                "user_id",
-                "nick_name",
-                "real_name",
-                "fans_num",
-                "collect_num",
-                "like_num"
-            ])
 
-def fetch_member_detail(user_id):
-    params = {"userId": user_id}
+def build_headers():
+    if not AUTH_TOKEN:
+        raise RuntimeError(
+            "Missing TF_AUTH_TOKEN. Set it in your shell or systemd environment before running spider.py."
+        )
+
+    return {
+        "User-Agent": USER_AGENT,
+        "Authorization": f"Bearer {AUTH_TOKEN}",
+        "Accept-Language": ACCEPT_LANGUAGE,
+    }
+
+
+def ensure_csv_exists(csv_path: Path):
+    csv_path.parent.mkdir(parents=True, exist_ok=True)
+    if not csv_path.exists():
+        with csv_path.open("w", newline="", encoding="utf-8-sig") as handle:
+            writer = csv.writer(handle)
+            writer.writerow(
+                [
+                    "time",
+                    "tag",
+                    "user_id",
+                    "nick_name",
+                    "real_name",
+                    "fans_num",
+                    "collect_num",
+                    "like_num",
+                ]
+            )
+
+
+def fetch_member_detail(user_id: int, headers):
     response = requests.get(
         BASE_URL,
-        headers=HEADERS,
-        params=params,
-        timeout=20
+        headers=headers,
+        params={"userId": user_id},
+        timeout=20,
     )
     response.raise_for_status()
 
     data = response.json()
-
     if data.get("code") != 200:
-        raise ValueError("API returned non-200 code: " + str(data))
+        raise ValueError(f"API returned non-200 code: {data}")
 
     member_data = data.get("data", {})
     info_data = member_data.get("info", {})
-
-    result = {
+    return {
         "user_id": member_data.get("userId"),
         "nick_name": member_data.get("nickName"),
         "real_name": member_data.get("realName"),
         "fans_num": info_data.get("fansNum"),
         "collect_num": info_data.get("collectNum"),
-        "like_num": info_data.get("likeNum")
+        "like_num": info_data.get("likeNum"),
     }
-    return result
+
 
 def resolve_tag(tag, detail):
-    # 如果用户手动填了tag，就优先用
     if tag and tag.strip():
         return tag
-
-    # 自动 fallback 逻辑
     if detail["real_name"]:
         return detail["real_name"]
-    elif detail["nick_name"]:
+    if detail["nick_name"]:
         return detail["nick_name"]
-    else:
-        return "UNKNOWN"
+    return "UNKNOWN"
 
-def append_row(csv_path, row):
-    with open(csv_path, "a", newline="", encoding="utf-8-sig") as f:
-        writer = csv.writer(f)
-        writer.writerow(row)
 
-def poll_once():
+def append_row(csv_path: Path, row):
+    with csv_path.open("a", newline="", encoding="utf-8-sig") as handle:
+        csv.writer(handle).writerow(row)
+
+
+def poll_once(headers):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     for target in TARGETS:
@@ -97,10 +111,8 @@ def poll_once():
         user_id = target["user_id"]
 
         try:
-            detail = fetch_member_detail(user_id)
-
+            detail = fetch_member_detail(user_id, headers)
             tag = resolve_tag(raw_tag, detail)
-
             row = [
                 timestamp,
                 tag,
@@ -109,18 +121,11 @@ def poll_once():
                 detail["real_name"],
                 detail["fans_num"],
                 detail["collect_num"],
-                detail["like_num"]
+                detail["like_num"],
             ]
             append_row(CSV_FILE, row)
-
-            print(
-                "[" + timestamp + "] "
-                + tag
-                + " | fans="
-                + str(detail["fans_num"])
-            )
-
-        except Exception as e:
+            print(f"[{timestamp}] {tag} | fans={detail['fans_num']}")
+        except Exception as exc:
             error_row = [
                 timestamp,
                 raw_tag if raw_tag else "UNKNOWN",
@@ -129,24 +134,22 @@ def poll_once():
                 "",
                 "",
                 "",
-                "ERROR: " + str(e)
+                f"ERROR: {exc}",
             ]
             append_row(CSV_FILE, error_row)
+            print(f"[{timestamp}] {user_id} ERROR: {exc}")
 
-            print(
-                "[" + timestamp + "] "
-                + str(user_id)
-                + " ERROR: "
-                + str(e)
-            )
 
 def main():
+    headers = build_headers()
     ensure_csv_exists(CSV_FILE)
-    print("Start polling every " + str(POLL_INTERVAL_SECONDS) + " seconds")
+    print(f"Start polling every {POLL_INTERVAL_SECONDS} seconds")
+    print(f"Writing rows to {CSV_FILE}")
 
     while True:
-        poll_once()
+        poll_once(headers)
         time.sleep(POLL_INTERVAL_SECONDS)
+
 
 if __name__ == "__main__":
     main()
