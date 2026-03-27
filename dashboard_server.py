@@ -16,6 +16,11 @@ STATIC_DIR = Path(os.environ.get("TF_STATIC_DIR", str(BASE_DIR / "web")))
 DEFAULT_HOST = os.environ.get("TF_DASHBOARD_HOST", "127.0.0.1")
 DEFAULT_PORT = int(os.environ.get("PORT", os.environ.get("TF_DASHBOARD_PORT", "8000")))
 TIME_FORMAT = "%Y-%m-%d %H:%M:%S"
+TIME_FORMATS = (
+    "%Y-%m-%d %H:%M:%S",
+    "%Y/%m/%d %H:%M",
+    "%Y/%m/%d %H:%M:%S",
+)
 
 
 def parse_int(value):
@@ -23,6 +28,15 @@ def parse_int(value):
         return int(value)
     except (TypeError, ValueError):
         return None
+
+
+def parse_time(value):
+    for fmt in TIME_FORMATS:
+        try:
+            return datetime.strptime(value, fmt)
+        except ValueError:
+            continue
+    return None
 
 
 def load_rows(csv_file: Path):
@@ -42,9 +56,8 @@ def load_rows(csv_file: Path):
             if not timestamp or not tag or fans_num is None:
                 continue
 
-            try:
-                parsed_time = datetime.strptime(timestamp, TIME_FORMAT)
-            except ValueError:
+            parsed_time = parse_time(timestamp)
+            if parsed_time is None:
                 continue
 
             rows.append(
@@ -118,16 +131,13 @@ def summarize_dashboard(rows):
         grouped[row["tag"]].append(row)
 
     ranking = []
-    trend_labels = []
     fan_trend_series = []
     growth_trend_series = []
     total_fans = 0
     total_growth = 0
     recent_growth_total = 0
     last_updated = None
-
-    label_set = sorted({row["time_label"] for row in rows})
-    trend_labels = label_set
+    trend_labels = sorted({row["time_label"] for row in rows})
 
     for tag, items in grouped.items():
         first = items[0]
@@ -161,10 +171,7 @@ def summarize_dashboard(rows):
         fan_trend_series.append(
             {
                 "name": tag,
-                "data": [
-                    by_label[label]["fans_num"] if label in by_label else None
-                    for label in trend_labels
-                ],
+                "data": [by_label[label]["fans_num"] if label in by_label else None for label in trend_labels],
             }
         )
         growth_trend_series.append(
