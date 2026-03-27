@@ -51,7 +51,6 @@ def load_rows(csv_file: Path):
                 {
                     "time": parsed_time,
                     "time_label": parsed_time.strftime(TIME_FORMAT),
-                    "time_ms": int(parsed_time.timestamp() * 1000),
                     "tag": tag,
                     "user_id": row.get("user_id", "").strip(),
                     "nick_name": row.get("nick_name", "").strip(),
@@ -119,12 +118,16 @@ def summarize_dashboard(rows):
         grouped[row["tag"]].append(row)
 
     ranking = []
+    trend_labels = []
     fan_trend_series = []
     growth_trend_series = []
     total_fans = 0
     total_growth = 0
     recent_growth_total = 0
     last_updated = None
+
+    label_set = sorted({row["time_label"] for row in rows})
+    trend_labels = label_set
 
     for tag, items in grouped.items():
         first = items[0]
@@ -154,16 +157,23 @@ def summarize_dashboard(rows):
             }
         )
 
+        by_label = {item["time_label"]: item for item in items}
         fan_trend_series.append(
             {
                 "name": tag,
-                "data": [[item["time_ms"], item["fans_num"]] for item in items],
+                "data": [
+                    by_label[label]["fans_num"] if label in by_label else None
+                    for label in trend_labels
+                ],
             }
         )
         growth_trend_series.append(
             {
                 "name": tag,
-                "data": [[item["time_ms"], item["fans_num"] - first["fans_num"]] for item in items],
+                "data": [
+                    (by_label[label]["fans_num"] - first["fans_num"]) if label in by_label else None
+                    for label in trend_labels
+                ],
             }
         )
 
@@ -225,6 +235,7 @@ def summarize_dashboard(rows):
         },
         "ranking": ranking,
         "charts": {
+            "trend_labels": trend_labels,
             "fans_series": fan_trend_series,
             "growth_series": growth_trend_series,
             "focus_series": focus_series,

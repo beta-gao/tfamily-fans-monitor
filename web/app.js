@@ -120,7 +120,8 @@ function createChartBase() {
     legend: { type: "scroll", top: 0 },
     grid: { top: 54, left: 48, right: 24, bottom: 64 },
     xAxis: {
-      type: "time",
+      type: "category",
+      boundaryGap: false,
       axisLabel: { color: "#5b6772" },
     },
     yAxis: {
@@ -138,6 +139,10 @@ function createChartBase() {
 function renderCharts(data) {
   fansChart.setOption({
     ...createChartBase(),
+    xAxis: {
+      ...createChartBase().xAxis,
+      data: data.charts.trend_labels || [],
+    },
     series: lineSeries(data.charts.fans_series),
   }, true);
 
@@ -158,6 +163,10 @@ function renderCharts(data) {
 
   focusChart.setOption({
     ...createChartBase(),
+    xAxis: {
+      ...createChartBase().xAxis,
+      data: data.charts.trend_labels || [],
+    },
     yAxis: {
       type: "value",
       axisLabel: { color: "#5b6772" },
@@ -169,6 +178,10 @@ function renderCharts(data) {
 
   growthChart.setOption({
     ...createChartBase(),
+    xAxis: {
+      ...createChartBase().xAxis,
+      data: data.charts.trend_labels || [],
+    },
     series: lineSeries(data.charts.growth_series),
   }, true);
 }
