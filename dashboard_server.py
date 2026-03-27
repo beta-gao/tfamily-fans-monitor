@@ -51,6 +51,7 @@ def load_rows(csv_file: Path):
                 {
                     "time": parsed_time,
                     "time_label": parsed_time.strftime(TIME_FORMAT),
+                    "time_ms": int(parsed_time.timestamp() * 1000),
                     "tag": tag,
                     "user_id": row.get("user_id", "").strip(),
                     "nick_name": row.get("nick_name", "").strip(),
@@ -156,13 +157,13 @@ def summarize_dashboard(rows):
         fan_trend_series.append(
             {
                 "name": tag,
-                "data": [[item["time_label"], item["fans_num"]] for item in items],
+                "data": [[item["time_ms"], item["fans_num"]] for item in items],
             }
         )
         growth_trend_series.append(
             {
                 "name": tag,
-                "data": [[item["time_label"], item["fans_num"] - first["fans_num"]] for item in items],
+                "data": [[item["time_ms"], item["fans_num"] - first["fans_num"]] for item in items],
             }
         )
 
