@@ -2,6 +2,9 @@ const refreshButton = document.getElementById("refresh-button");
 const refreshStatus = document.getElementById("refresh-status");
 const lastUpdated = document.getElementById("last-updated");
 const rankingBody = document.getElementById("ranking-body");
+const updateGrowthHead = document.getElementById("update-growth-head");
+const updateGrowthBody = document.getElementById("update-growth-body");
+const updateGrowthPicker = document.getElementById("update-growth-picker");
 const insightsList = document.getElementById("insights-list");
 const focusGroupCaption = document.getElementById("focus-group-caption");
 const focusMemberPicker = document.getElementById("focus-member-picker");
@@ -19,6 +22,7 @@ const growthChart = echarts.init(document.getElementById("growth-chart"));
 
 let latestDashboardData = null;
 let manualFocusTags = null;
+let manualUpdateGrowthTags = null;
 
 function formatNumber(value) {
   return new Intl.NumberFormat("zh-CN").format(value ?? 0);
@@ -75,6 +79,65 @@ function renderRanking(items) {
     `;
     rankingBody.appendChild(row);
   });
+}
+
+function renderUpdateGrowthTable(data) {
+  const updateGrowth = data.update_growth || {};
+  const allTags = updateGrowth.tags || [];
+  const tags = manualUpdateGrowthTags && manualUpdateGrowthTags.length
+    ? allTags.filter((tag) => manualUpdateGrowthTags.includes(tag))
+    : allTags;
+  const rows = updateGrowth.rows || [];
+
+  updateGrowthHead.innerHTML = `
+    <tr>
+      <th>Sample Time</th>
+      ${tags.map((tag) => `<th>${tag}</th>`).join("")}
+      <th>Total Delta</th>
+    </tr>
+  `;
+
+  updateGrowthBody.innerHTML = "";
+  rows.slice().reverse().forEach((row) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${row.time}</td>
+      ${tags.map((tag) => {
+        const value = row.deltas?.[tag];
+        const className = value == null ? "neutral" : value < 0 ? "negative" : "positive";
+        const text = value == null ? "-" : formatDelta(value);
+        return `<td class="${className}">${text}</td>`;
+      }).join("")}
+      <td class="${row.total_delta < 0 ? "negative" : "positive"}">${formatDelta(row.total_delta)}</td>
+    `;
+    updateGrowthBody.appendChild(tr);
+  });
+}
+
+function renderUpdateGrowthPicker(data) {
+  const allTags = data.update_growth?.tags || [];
+  const activeTags = manualUpdateGrowthTags && manualUpdateGrowthTags.length
+    ? manualUpdateGrowthTags
+    : allTags;
+
+  updateGrowthPicker.innerHTML = "";
+  allTags.forEach((tag) => {
+    const label = document.createElement("label");
+    label.className = "member-chip";
+    const checked = activeTags.includes(tag) ? "checked" : "";
+    label.innerHTML = `
+      <input type="checkbox" value="${tag}" ${checked}>
+      <span>${tag}</span>
+    `;
+    updateGrowthPicker.appendChild(label);
+  });
+}
+
+function selectedUpdateGrowthTags() {
+  return Array.from(
+    updateGrowthPicker.querySelectorAll('input[type="checkbox"]:checked'),
+    (input) => input.value,
+  );
 }
 
 function renderFocusPicker(data) {
@@ -197,6 +260,8 @@ async function loadDashboard() {
     renderMetrics(data);
     renderInsights(data.insights || []);
     renderRanking(data.ranking || []);
+    renderUpdateGrowthPicker(data);
+    renderUpdateGrowthTable(data);
     renderFocusPicker(data);
     renderCharts(data);
     refreshStatus.textContent = "Data synced";
@@ -210,6 +275,14 @@ focusApplyButton.addEventListener("click", () => {
   const tags = selectedFocusTags();
   manualFocusTags = tags.length ? tags : null;
   if (latestDashboardData) renderCharts(latestDashboardData);
+});
+
+updateGrowthPicker.addEventListener("change", () => {
+  const tags = selectedUpdateGrowthTags();
+  manualUpdateGrowthTags = tags.length ? tags : null;
+  if (latestDashboardData) {
+    renderUpdateGrowthTable(latestDashboardData);
+  }
 });
 
 focusAutoButton.addEventListener("click", () => {
