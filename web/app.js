@@ -2,9 +2,8 @@ const refreshButton = document.getElementById("refresh-button");
 const refreshStatus = document.getElementById("refresh-status");
 const lastUpdated = document.getElementById("last-updated");
 const rankingBody = document.getElementById("ranking-body");
-const updateGrowthHead = document.getElementById("update-growth-head");
-const updateGrowthBody = document.getElementById("update-growth-body");
 const updateGrowthPicker = document.getElementById("update-growth-picker");
+const updateGrowthIntervals = document.getElementById("update-growth-intervals");
 const insightsList = document.getElementById("insights-list");
 const focusGroupCaption = document.getElementById("focus-group-caption");
 const focusMemberPicker = document.getElementById("focus-member-picker");
@@ -18,11 +17,12 @@ const metricRecentGrowth = document.getElementById("metric-recent-growth");
 
 const fansChart = echarts.init(document.getElementById("fans-chart"));
 const focusChart = echarts.init(document.getElementById("focus-chart"));
-const growthChart = echarts.init(document.getElementById("growth-chart"));
+const updateGrowthChart = echarts.init(document.getElementById("update-growth-chart"));
 
 let latestDashboardData = null;
 let manualFocusTags = null;
 let manualUpdateGrowthTags = null;
+let updateGrowthInterval = 1;
 
 function formatNumber(value) {
   return new Intl.NumberFormat("zh-CN").format(value ?? 0);
@@ -81,37 +81,67 @@ function renderRanking(items) {
   });
 }
 
-function renderUpdateGrowthTable(data) {
+function aggregateUpdateGrowthRows(rows, interval) {
+  if (interval <= 1) return rows;
+
+  const aggregated = [];
+  for (let index = 0; index < rows.length; index += interval) {
+    const chunk = rows.slice(index, index + interval);
+    if (!chunk.length) continue;
+
+    const merged = {
+      time: chunk.length === 1 ? chunk[0].time : `${chunk[0].time} -> ${chunk[chunk.length - 1].time}`,
+      total_delta: 0,
+      deltas: {},
+    };
+
+    chunk.forEach((row) => {
+      merged.total_delta += row.total_delta || 0;
+      Object.entries(row.deltas || {}).forEach(([tag, value]) => {
+        if (value == null) return;
+        merged.deltas[tag] = (merged.deltas[tag] || 0) + value;
+      });
+    });
+
+    aggregated.push(merged);
+  }
+
+  return aggregated;
+}
+
+function renderUpdateGrowthChart(data) {
   const updateGrowth = data.update_growth || {};
   const allTags = updateGrowth.tags || [];
   const tags = manualUpdateGrowthTags && manualUpdateGrowthTags.length
     ? allTags.filter((tag) => manualUpdateGrowthTags.includes(tag))
     : allTags;
-  const rows = updateGrowth.rows || [];
+  const rows = aggregateUpdateGrowthRows(updateGrowth.rows || [], updateGrowthInterval);
+  const labels = rows.map((row) => row.time);
+  const series = tags.map((tag) => ({
+    name: tag,
+    type: "line",
+    smooth: true,
+    showSymbol: false,
+    emphasis: { focus: "series" },
+    lineStyle: { width: 3 },
+    data: rows.map((row) => row.deltas?.[tag] ?? null),
+  }));
 
-  updateGrowthHead.innerHTML = `
-    <tr>
-      <th>Sample Time</th>
-      ${tags.map((tag) => `<th>${tag}</th>`).join("")}
-      <th>Total Delta</th>
-    </tr>
-  `;
-
-  updateGrowthBody.innerHTML = "";
-  rows.slice().reverse().forEach((row) => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${row.time}</td>
-      ${tags.map((tag) => {
-        const value = row.deltas?.[tag];
-        const className = value == null ? "neutral" : value < 0 ? "negative" : "positive";
-        const text = value == null ? "-" : formatDelta(value);
-        return `<td class="${className}">${text}</td>`;
-      }).join("")}
-      <td class="${row.total_delta < 0 ? "negative" : "positive"}">${formatDelta(row.total_delta)}</td>
-    `;
-    updateGrowthBody.appendChild(tr);
-  });
+  updateGrowthChart.setOption({
+    ...createChartBase(),
+    legend: { type: "scroll", top: 0 },
+    xAxis: {
+      ...createChartBase().xAxis,
+      data: labels,
+    },
+    yAxis: {
+      type: "value",
+      axisLabel: { color: "#5b6772" },
+      splitLine: { lineStyle: { color: "rgba(31, 41, 51, 0.08)" } },
+      scale: true,
+    },
+    series,
+  }, true);
 }
 
 function renderUpdateGrowthPicker(data) {
@@ -138,6 +168,11 @@ function selectedUpdateGrowthTags() {
     updateGrowthPicker.querySelectorAll('input[type="checkbox"]:checked'),
     (input) => input.value,
   );
+}
+
+function selectedUpdateGrowthInterval() {
+  const checked = updateGrowthIntervals.querySelector('input[name="update-interval"]:checked');
+  return checked ? Number(checked.value) : 1;
 }
 
 function renderFocusPicker(data) {
@@ -239,14 +274,6 @@ function renderCharts(data) {
     series: lineSeries(focusSeries),
   }, true);
 
-  growthChart.setOption({
-    ...createChartBase(),
-    xAxis: {
-      ...createChartBase().xAxis,
-      data: data.charts.trend_labels || [],
-    },
-    series: lineSeries(data.charts.growth_series),
-  }, true);
 }
 
 async function loadDashboard() {
@@ -261,7 +288,7 @@ async function loadDashboard() {
     renderInsights(data.insights || []);
     renderRanking(data.ranking || []);
     renderUpdateGrowthPicker(data);
-    renderUpdateGrowthTable(data);
+    renderUpdateGrowthChart(data);
     renderFocusPicker(data);
     renderCharts(data);
     refreshStatus.textContent = "Data synced";
@@ -281,7 +308,14 @@ updateGrowthPicker.addEventListener("change", () => {
   const tags = selectedUpdateGrowthTags();
   manualUpdateGrowthTags = tags.length ? tags : null;
   if (latestDashboardData) {
-    renderUpdateGrowthTable(latestDashboardData);
+    renderUpdateGrowthChart(latestDashboardData);
+  }
+});
+
+updateGrowthIntervals.addEventListener("change", () => {
+  updateGrowthInterval = selectedUpdateGrowthInterval();
+  if (latestDashboardData) {
+    renderUpdateGrowthChart(latestDashboardData);
   }
 });
 
@@ -297,7 +331,7 @@ refreshButton.addEventListener("click", loadDashboard);
 window.addEventListener("resize", () => {
   fansChart.resize();
   focusChart.resize();
-  growthChart.resize();
+  updateGrowthChart.resize();
 });
 
 loadDashboard();

@@ -86,13 +86,6 @@
         <div id="focus-chart" class="chart"></div>
       </section>
 
-      <section class="panel chart-panel full-span">
-        <div class="panel-header">
-          <h2>Relative Growth Trend</h2>
-        </div>
-        <div id="growth-chart" class="chart"></div>
-      </section>
-
       <section class="panel ranking-panel full-span">
         <div class="panel-header">
           <h2>Ranking</h2>
@@ -119,18 +112,23 @@
 
       <section class="panel ranking-panel full-span">
         <div class="panel-header">
-          <h2>Update Growth Table</h2>
+          <h2>Update Growth Trend</h2>
         </div>
         <div class="focus-picker">
           <p class="focus-picker-label">Filter members in update table</p>
           <div id="update-growth-picker" class="focus-member-picker"></div>
         </div>
-        <div class="table-wrap">
-          <table>
-            <thead id="update-growth-head"></thead>
-            <tbody id="update-growth-body"></tbody>
-          </table>
+        <div class="focus-picker">
+          <p class="focus-picker-label">Growth interval</p>
+          <div id="update-growth-intervals" class="focus-member-picker">
+            <label class="member-chip"><input type="radio" name="update-interval" value="1" checked><span>Every update</span></label>
+            <label class="member-chip"><input type="radio" name="update-interval" value="10"><span>Every 10</span></label>
+            <label class="member-chip"><input type="radio" name="update-interval" value="50"><span>Every 50</span></label>
+            <label class="member-chip"><input type="radio" name="update-interval" value="100"><span>Every 100</span></label>
+            <label class="member-chip"><input type="radio" name="update-interval" value="1000"><span>Every 1000</span></label>
+          </div>
         </div>
+        <div id="update-growth-chart" class="chart"></div>
       </section>
     </main>
   </div>
