@@ -131,6 +131,7 @@ def summarize_dashboard(rows):
         grouped[row["tag"]].append(row)
 
     ranking = []
+    ordered_tags = []
     fan_trend_series = []
     growth_trend_series = []
     total_fans = 0
@@ -138,8 +139,10 @@ def summarize_dashboard(rows):
     recent_growth_total = 0
     last_updated = None
     trend_labels = sorted({row["time_label"] for row in rows})
+    update_growth_rows = []
 
     for tag, items in grouped.items():
+        ordered_tags.append(tag)
         first = items[0]
         latest = items[-1]
         previous = items[-2] if len(items) > 1 else items[-1]
@@ -183,6 +186,40 @@ def summarize_dashboard(rows):
                 ],
             }
         )
+
+    ordered_tags.sort()
+    rows_by_time = defaultdict(dict)
+    for row in rows:
+        rows_by_time[row["time_label"]][row["tag"]] = row
+
+    previous_snapshot = None
+    for time_label in trend_labels:
+        snapshot = rows_by_time[time_label]
+        deltas = {}
+        total_delta_for_row = 0
+
+        for tag in ordered_tags:
+            current = snapshot.get(tag)
+            if current is None:
+                deltas[tag] = None
+                continue
+
+            if previous_snapshot and tag in previous_snapshot:
+                delta = current["fans_num"] - previous_snapshot[tag]["fans_num"]
+            else:
+                delta = 0
+
+            deltas[tag] = delta
+            total_delta_for_row += delta
+
+        update_growth_rows.append(
+            {
+                "time": time_label,
+                "total_delta": total_delta_for_row,
+                "deltas": deltas,
+            }
+        )
+        previous_snapshot = snapshot
 
     ranking.sort(key=lambda item: item["fans_num"], reverse=True)
     for index, item in enumerate(ranking):
@@ -246,6 +283,10 @@ def summarize_dashboard(rows):
             "fans_series": fan_trend_series,
             "growth_series": growth_trend_series,
             "focus_series": focus_series,
+        },
+        "update_growth": {
+            "tags": ordered_tags,
+            "rows": update_growth_rows,
         },
         "focus_group": focus_summary,
         "insights": insights,
