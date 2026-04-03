@@ -24,15 +24,15 @@ let manualFocusTags = null;
 let manualUpdateGrowthTags = null;
 let updateGrowthInterval = 1;
 const MEMBER_COLORS = {
-  "杨博文": "#FFB6C1",
-  "陈奕恒": "#CCCCFF",
-  "张桂源": "#FFFF99",
-  "王橹杰": "#AFDFE4",
+  "杨博文": "#E78FA7",
+  "陈奕恒": "#9B8FE8",
+  "张桂源": "#D6C94A",
+  "王橹杰": "#5FAFBE",
   "左奇函": "#0047AB",
-  "张函瑞": "#8FBC8F",
+  "张函瑞": "#5F9E5F",
   "陈浚铭": "#FF0000",
-  "陈思罕": "#33E6CC",
-  "张奕然": "#ff952d",
+  "陈思罕": "#1AAE99",
+  "张奕然": "#E67E22",
 };
 
 function formatNumber(value) {
