@@ -21,6 +21,7 @@ TIME_FORMATS = (
     "%Y/%m/%d %H:%M",
     "%Y/%m/%d %H:%M:%S",
 )
+EXCLUDED_TAGS = {"官俊臣"}
 
 
 def parse_int(value):
@@ -53,7 +54,7 @@ def load_rows(csv_file: Path):
             collect_num = parse_int(row.get("collect_num"))
             like_num = parse_int(row.get("like_num"))
 
-            if not timestamp or not tag or fans_num is None:
+            if not timestamp or not tag or fans_num is None or tag in EXCLUDED_TAGS:
                 continue
 
             parsed_time = parse_time(timestamp)

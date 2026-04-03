@@ -23,6 +23,17 @@ let latestDashboardData = null;
 let manualFocusTags = null;
 let manualUpdateGrowthTags = null;
 let updateGrowthInterval = 1;
+const MEMBER_COLORS = {
+  "杨博文": "#FFB6C1",
+  "陈奕恒": "#CCCCFF",
+  "张桂源": "#FFFF99",
+  "王橹杰": "#AFDFE4",
+  "左奇函": "#0047AB",
+  "张函瑞": "#8FBC8F",
+  "陈浚铭": "#FF0000",
+  "陈思罕": "#33E6CC",
+  "张奕然": "#ff952d",
+};
 
 function formatNumber(value) {
   return new Intl.NumberFormat("zh-CN").format(value ?? 0);
@@ -123,7 +134,8 @@ function renderUpdateGrowthChart(data) {
     smooth: true,
     showSymbol: false,
     emphasis: { focus: "series" },
-    lineStyle: { width: 3 },
+    lineStyle: { width: 3, color: MEMBER_COLORS[tag] },
+    itemStyle: { color: MEMBER_COLORS[tag] },
     data: rows.map((row) => row.deltas?.[tag] ?? null),
   }));
 
@@ -206,7 +218,8 @@ function lineSeries(source) {
     smooth: true,
     showSymbol: false,
     emphasis: { focus: "series" },
-    lineStyle: { width: 3 },
+    lineStyle: { width: 3, color: MEMBER_COLORS[series.name] },
+    itemStyle: { color: MEMBER_COLORS[series.name] },
     data: series.data,
   }));
 }
