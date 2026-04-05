@@ -1,4 +1,3 @@
-import csv
 import os
 import time
 from datetime import datetime
@@ -6,9 +5,11 @@ from pathlib import Path
 
 import requests
 
+from db import build_snapshot_record, init_db, insert_snapshot
+
 
 BASE_URL = "https://app.tfent.cn/member-v2/query/detail"
-CSV_FILE = Path(os.environ.get("TF_CSV_FILE", "tf_family_fans_multi.csv"))
+DB_FILE = Path(os.environ.get("TF_DB_FILE", "tf_dashboard.sqlite3"))
 POLL_INTERVAL_SECONDS = int(os.environ.get("TF_POLL_INTERVAL_SECONDS", "150"))
 AUTH_TOKEN = os.environ.get("TF_AUTH_TOKEN")
 USER_AGENT = os.environ.get(
@@ -20,7 +21,7 @@ ACCEPT_LANGUAGE = os.environ.get("TF_ACCEPT_LANGUAGE", "zh-Hans-CA")
 TARGETS = [
     {"tag": "", "user_id": 16823136},
     {"tag": "", "user_id": 16823118},
-    {"tag": "", "user_id": 16823098},
+    {"tag": "", "user_id": 19579926},
     {"tag": "", "user_id": 16823128},
     {"tag": "", "user_id": 16823131},
     {"tag": "", "user_id": 16823134},
@@ -42,25 +43,6 @@ def build_headers():
         "Authorization": f"Bearer {AUTH_TOKEN}",
         "Accept-Language": ACCEPT_LANGUAGE,
     }
-
-
-def ensure_csv_exists(csv_path: Path):
-    csv_path.parent.mkdir(parents=True, exist_ok=True)
-    if not csv_path.exists():
-        with csv_path.open("w", newline="", encoding="utf-8-sig") as handle:
-            writer = csv.writer(handle)
-            writer.writerow(
-                [
-                    "time",
-                    "tag",
-                    "user_id",
-                    "nick_name",
-                    "real_name",
-                    "fans_num",
-                    "collect_num",
-                    "like_num",
-                ]
-            )
 
 
 def fetch_member_detail(user_id: int, headers):
@@ -98,11 +80,6 @@ def resolve_tag(tag, detail):
     return "UNKNOWN"
 
 
-def append_row(csv_path: Path, row):
-    with csv_path.open("a", newline="", encoding="utf-8-sig") as handle:
-        csv.writer(handle).writerow(row)
-
-
 def poll_once(headers):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -113,38 +90,34 @@ def poll_once(headers):
         try:
             detail = fetch_member_detail(user_id, headers)
             tag = resolve_tag(raw_tag, detail)
-            row = [
-                timestamp,
-                tag,
-                detail["user_id"],
-                detail["nick_name"],
-                detail["real_name"],
-                detail["fans_num"],
-                detail["collect_num"],
-                detail["like_num"],
-            ]
-            append_row(CSV_FILE, row)
+            snapshot = build_snapshot_record(
+                captured_at=timestamp,
+                tag=tag,
+                user_id=detail["user_id"],
+                nick_name=detail["nick_name"],
+                real_name=detail["real_name"],
+                fans_num=detail["fans_num"],
+                collect_num=detail["collect_num"],
+                like_num=detail["like_num"],
+            )
+            insert_snapshot(DB_FILE, snapshot)
             print(f"[{timestamp}] {tag} | fans={detail['fans_num']}")
         except Exception as exc:
-            error_row = [
-                timestamp,
-                raw_tag if raw_tag else "UNKNOWN",
-                user_id,
-                "",
-                "",
-                "",
-                "",
-                f"ERROR: {exc}",
-            ]
-            append_row(CSV_FILE, error_row)
+            snapshot = build_snapshot_record(
+                captured_at=timestamp,
+                tag=raw_tag if raw_tag else "UNKNOWN",
+                user_id=user_id,
+                error_message=f"ERROR: {exc}",
+            )
+            insert_snapshot(DB_FILE, snapshot)
             print(f"[{timestamp}] {user_id} ERROR: {exc}")
 
 
 def main():
     headers = build_headers()
-    ensure_csv_exists(CSV_FILE)
+    init_db(DB_FILE)
     print(f"Start polling every {POLL_INTERVAL_SECONDS} seconds")
-    print(f"Writing rows to {CSV_FILE}")
+    print(f"Writing snapshots to {DB_FILE}")
 
     while True:
         poll_once(headers)

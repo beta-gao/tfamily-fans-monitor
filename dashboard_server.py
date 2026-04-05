@@ -1,82 +1,21 @@
 import argparse
-import csv
 import json
 import os
 from collections import defaultdict
-from datetime import datetime
 from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 
+from db import TIME_FORMAT, load_dashboard_rows
+
 
 BASE_DIR = Path(__file__).resolve().parent
-CSV_FILE = Path(os.environ.get("TF_CSV_FILE", str(BASE_DIR / "tf_family_fans_multi.csv")))
+DB_FILE = Path(os.environ.get("TF_DB_FILE", str(BASE_DIR / "tf_dashboard.sqlite3")))
 STATIC_DIR = Path(os.environ.get("TF_STATIC_DIR", str(BASE_DIR / "web")))
 DEFAULT_HOST = os.environ.get("TF_DASHBOARD_HOST", "127.0.0.1")
 DEFAULT_PORT = int(os.environ.get("PORT", os.environ.get("TF_DASHBOARD_PORT", "8000")))
-TIME_FORMAT = "%Y-%m-%d %H:%M:%S"
-TIME_FORMATS = (
-    "%Y-%m-%d %H:%M:%S",
-    "%Y/%m/%d %H:%M",
-    "%Y/%m/%d %H:%M:%S",
-)
-EXCLUDED_TAGS = {"官俊臣"}
-
-
-def parse_int(value):
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        return None
-
-
-def parse_time(value):
-    for fmt in TIME_FORMATS:
-        try:
-            return datetime.strptime(value, fmt)
-        except ValueError:
-            continue
-    return None
-
-
-def load_rows(csv_file: Path):
-    rows = []
-    if not csv_file.exists():
-        return rows
-
-    with csv_file.open("r", encoding="utf-8-sig", newline="") as handle:
-        reader = csv.DictReader(handle)
-        for row in reader:
-            timestamp = row.get("time", "").strip()
-            tag = row.get("tag", "").strip()
-            fans_num = parse_int(row.get("fans_num"))
-            collect_num = parse_int(row.get("collect_num"))
-            like_num = parse_int(row.get("like_num"))
-
-            if not timestamp or not tag or fans_num is None or tag in EXCLUDED_TAGS:
-                continue
-
-            parsed_time = parse_time(timestamp)
-            if parsed_time is None:
-                continue
-
-            rows.append(
-                {
-                    "time": parsed_time,
-                    "time_label": parsed_time.strftime(TIME_FORMAT),
-                    "tag": tag,
-                    "user_id": row.get("user_id", "").strip(),
-                    "nick_name": row.get("nick_name", "").strip(),
-                    "real_name": row.get("real_name", "").strip(),
-                    "fans_num": fans_num,
-                    "collect_num": collect_num,
-                    "like_num": like_num,
-                }
-            )
-
-    rows.sort(key=lambda item: (item["tag"], item["time"]))
-    return rows
+EXCLUDED_TAGS = {"瀹樹繆鑷?"}
 
 
 def build_focus_group(ranking, fan_trend_series):
@@ -236,32 +175,32 @@ def summarize_dashboard(rows):
     if leader:
         insights.append(
             {
-                "title": "当前领跑",
-                "content": f'{leader["tag"]} 目前粉丝数最高，达到 {leader["fans_num"]:,}。',
+                "title": "褰撳墠棰嗚窇",
+                "content": f'{leader["tag"]} 鐩墠绮変笣鏁版渶楂橈紝杈惧埌 {leader["fans_num"]:,}銆?',
                 "tone": "highlight",
             }
         )
     if fastest_recent:
         insights.append(
             {
-                "title": "最近冲刺最快",
-                "content": f'{fastest_recent["tag"]} 在最近一次采样中新增 {fastest_recent["recent_growth"]:,} 粉丝。',
+                "title": "鏈€杩戝啿鍒烘渶蹇?",
+                "content": f'{fastest_recent["tag"]} 鍦ㄦ渶杩戜竴娆￠噰鏍蜂腑鏂板 {fastest_recent["recent_growth"]:,} 绮変笣銆?',
                 "tone": "positive",
             }
         )
     if strongest_total:
         insights.append(
             {
-                "title": "累计涨幅最佳",
-                "content": f'{strongest_total["tag"]} 自监控开始以来累计增长 {strongest_total["total_growth"]:,} 粉丝。',
+                "title": "绱娑ㄥ箙鏈€浣?",
+                "content": f'{strongest_total["tag"]} 鑷洃鎺у紑濮嬩互鏉ョ疮璁″闀?{strongest_total["total_growth"]:,} 绮変笣銆?',
                 "tone": "positive",
             }
         )
     if weakest_recent and weakest_recent["recent_growth"] <= 0:
         insights.append(
             {
-                "title": "波动提醒",
-                "content": f'{weakest_recent["tag"]} 最近一次采样增长为 {weakest_recent["recent_growth"]:,}，建议关注数据波动或异常。',
+                "title": "娉㈠姩鎻愰啋",
+                "content": f'{weakest_recent["tag"]} 鏈€杩戜竴娆￠噰鏍峰闀夸负 {weakest_recent["recent_growth"]:,}锛屽缓璁叧娉ㄦ暟鎹尝鍔ㄦ垨寮傚父銆?',
                 "tone": "warning",
             }
         )
@@ -304,7 +243,7 @@ class DashboardHandler(SimpleHTTPRequestHandler):
             self.respond_json({"status": "ok"})
             return
         if parsed.path == "/api/dashboard":
-            self.respond_json(summarize_dashboard(load_rows(CSV_FILE)))
+            self.respond_json(summarize_dashboard(load_dashboard_rows(DB_FILE, EXCLUDED_TAGS)))
             return
         if parsed.path == "/":
             self.path = "/index.html"
@@ -331,7 +270,7 @@ def main():
 
     server = ThreadingHTTPServer((args.host, args.port), DashboardHandler)
     print(f"Dashboard running at http://{args.host}:{args.port}")
-    print(f"Reading CSV from {CSV_FILE}")
+    print(f"Reading SQLite from {DB_FILE}")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

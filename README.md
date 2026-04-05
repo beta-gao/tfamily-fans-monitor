@@ -1,39 +1,72 @@
 # TF 家族智能看板
 
-这是一个基于现有 CSV 监控数据搭建的轻量网页看板项目。
+这是一个轻量级的 TF 家族数据看板项目。
 
-## 当前结构
+目前项目已经完成第一期存储升级：采集和看板主流程改为使用 SQLite，而不是持续追加单个 CSV 文件。
 
-- `spider.py`: 定时抓取成员数据并追加写入 `tf_family_fans_multi.csv`
-- `draw.py`: 从 CSV 生成静态图
+## 项目结构
+
+- `spider.py`: 定时抓取成员数据并写入 SQLite
 - `dashboard_server.py`: 启动网页服务并提供 JSON 接口
+- `db.py`: SQLite 建表、写入、查询和 CSV 导入逻辑
+- `import_csv_to_sqlite.py`: 将历史 CSV 一次性导入 SQLite
+- `draw.py`: 旧的 CSV 绘图脚本，暂未迁移
 - `web/index.html`: 看板页面
-- `web/app.js`: 前端渲染逻辑
+- `web/app.js`: 前端逻辑
 - `web/styles.css`: 页面样式
 
-## 启动网页看板
+## 环境变量
+
+参考 `.env.example`：
+
+- `TF_AUTH_TOKEN`: 采集接口使用的 token
+- `TF_DB_FILE`: SQLite 数据库文件路径
+- `TF_POLL_INTERVAL_SECONDS`: 抓取间隔秒数
+- `TF_DASHBOARD_HOST`: Web 服务监听地址
+- `TF_DASHBOARD_PORT`: Web 服务端口
+
+## 启动看板
 
 ```powershell
 python dashboard_server.py
 ```
 
-默认地址:
+默认地址：
 
 ```text
 http://127.0.0.1:8000
 ```
 
-## 看板内容
+## 导入历史 CSV
 
-- 核心概览: 成员数、总粉丝、累计增长、最近增长
-- 智能洞察: 自动提炼领跑者、最近冲刺、累计涨幅和波动提醒
-- 粉丝总量趋势图
-- 相对增长趋势图
-- 成员排行表
+如果你已有旧的 `tf_family_fans_multi.csv`，先执行一次导入：
+
+```powershell
+python import_csv_to_sqlite.py --csv tf_family_fans_multi.csv --db tf_dashboard.sqlite3
+```
+
+这个脚本会：
+
+- 初始化数据库和索引
+- 导入历史有效数据
+- 自动跳过重复记录
+- 将历史错误行写入 `error_message` 字段
+
+## 部署思路
+
+当前部署方式适合单机服务器：
+
+- `spider.py` 作为一个 `systemd` 服务持续采集
+- `dashboard_server.py` 作为一个 `systemd` 服务提供网页和 API
+- 反向代理（如 Nginx/Caddy）把域名请求转发到 `127.0.0.1:8000`
+
+示例 service 文件见：
+
+- `deploy/tf-spider.service`
+- `deploy/tf-dashboard.service`
 
 ## 后续建议
 
-- 将 `spider.py` 中的 token 改成环境变量
-- 为接口增加缓存和权限控制
-- 将 CSV 升级为 SQLite 或 PostgreSQL
-- 部署到云服务器或静态站点前端 + API 服务
+- 将 `draw.py` 和其它历史 CSV 工具也迁移到 SQLite
+- 为趋势接口增加时间范围查询，避免前端一次读取全部历史
+- 增加归档策略，例如保留原始高频数据并额外维护小时级汇总表
