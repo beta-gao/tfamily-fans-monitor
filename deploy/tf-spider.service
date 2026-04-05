@@ -4,12 +4,12 @@ After=network.target
 
 [Service]
 User=ubuntu
-WorkingDirectory=/home/ubuntu/tf-dashboard
+WorkingDirectory=/home/ubuntu/tfamily-fans-monitor
 Environment="PYTHONUNBUFFERED=1"
 Environment="TF_AUTH_TOKEN=replace-with-your-token"
-Environment="TF_DB_FILE=/home/ubuntu/tf-dashboard/data/tf_dashboard.sqlite3"
+Environment="TF_DB_FILE=/home/ubuntu/tfamily-fans-monitor/data/tf_dashboard.sqlite3"
 Environment="TF_POLL_INTERVAL_SECONDS=150"
-ExecStart=/home/ubuntu/tf-dashboard/.venv/bin/python /home/ubuntu/tf-dashboard/spider.py
+ExecStart=/home/ubuntu/tfamily-fans-monitor/.venv/bin/python /home/ubuntu/tfamily-fans-monitor/spider.py
 Restart=always
 RestartSec=5
 
