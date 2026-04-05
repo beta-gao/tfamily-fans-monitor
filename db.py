@@ -136,11 +136,12 @@ def insert_snapshots(db_path: Path, snapshots):
         return connection.total_changes - before
 
 
-def load_dashboard_rows(db_path: Path, excluded_tags=()):
+def load_dashboard_rows(db_path: Path, excluded_tags=(), active_user_ids=None):
     if not db_path.exists():
         return []
 
     excluded_tags = set(excluded_tags or ())
+    active_user_ids = set(active_user_ids or ())
     rows = []
 
     with connect_db(db_path) as connection:
@@ -171,12 +172,16 @@ def load_dashboard_rows(db_path: Path, excluded_tags=()):
             if parsed_time is None:
                 continue
 
+            user_id = row["user_id"]
+            if active_user_ids and user_id not in active_user_ids:
+                continue
+
             rows.append(
                 {
                     "time": parsed_time,
                     "time_label": parsed_time.strftime(TIME_FORMAT),
                     "tag": tag,
-                    "user_id": str(row["user_id"]).strip(),
+                    "user_id": str(user_id).strip(),
                     "nick_name": (row["nick_name"] or "").strip(),
                     "real_name": (row["real_name"] or "").strip(),
                     "fans_num": row["fans_num"],

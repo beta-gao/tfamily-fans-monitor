@@ -6,6 +6,7 @@ from pathlib import Path
 import requests
 
 from db import build_snapshot_record, init_db, insert_snapshot
+from targets import TARGETS
 
 
 BASE_URL = "https://app.tfent.cn/member-v2/query/detail"
@@ -17,20 +18,6 @@ USER_AGENT = os.environ.get(
     "TFFanclub/5.0.1 (iPhone; iOS 18.5; Scale/3.00)",
 )
 ACCEPT_LANGUAGE = os.environ.get("TF_ACCEPT_LANGUAGE", "zh-Hans-CA")
-
-TARGETS = [
-    {"tag": "", "user_id": 16823136},
-    {"tag": "", "user_id": 16823118},
-    {"tag": "", "user_id": 19579926},
-    {"tag": "", "user_id": 16823128},
-    {"tag": "", "user_id": 16823131},
-    {"tag": "", "user_id": 16823134},
-    {"tag": "", "user_id": 16823140},
-    {"tag": "", "user_id": 16823153},
-    {"tag": "", "user_id": 18865488},
-    {"tag": "", "user_id": 16823123},
-]
-
 
 def build_headers():
     if not AUTH_TOKEN:
