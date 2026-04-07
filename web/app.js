@@ -21,18 +21,6 @@ const focusChart = echarts.init(document.getElementById("focus-chart"));
 const updateGrowthChart = echarts.init(document.getElementById("update-growth-chart"));
 
 const MEMBER_COLORS = {};
-const FALLBACK_COLORS = [
-  "#0C7C59",
-  "#D97706",
-  "#5FAFBE",
-  "#9B8FE8",
-  "#E78FA7",
-  "#0047AB",
-  "#E67E22",
-  "#1AAE99",
-  "#B42318",
-  "#6B7280",
-];
 
 let latestDashboardData = null;
 let manualFocusTags = null;
@@ -51,7 +39,11 @@ function hashString(value) {
 
 function getMemberColor(tag) {
   if (MEMBER_COLORS[tag]) return MEMBER_COLORS[tag];
-  return FALLBACK_COLORS[hashString(tag) % FALLBACK_COLORS.length];
+  const hash = hashString(tag);
+  const hue = hash % 360;
+  const saturation = 58 + (hash % 18);
+  const lightness = 42 + (hash % 10);
+  return `hsl(${hue} ${saturation}% ${lightness}%)`;
 }
 
 function formatNumber(value) {
