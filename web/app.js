@@ -20,7 +20,18 @@ const fansChart = echarts.init(document.getElementById("fans-chart"));
 const focusChart = echarts.init(document.getElementById("focus-chart"));
 const updateGrowthChart = echarts.init(document.getElementById("update-growth-chart"));
 
-const MEMBER_COLORS = {};
+const MEMBER_COLORS = {
+  "杨博文": "#E78FA7",
+  "陈奕恒": "#9B8FE8",
+  "张桂源": "#D6C94A",
+  "王橹杰": "#5FAFBE",
+  "左奇函": "#0047AB",
+  "张函瑞": "#5F9E5F",
+  "陈浚铭": "#FF0000",
+  "陈思罕": "#1AAE99",
+  "张奕然": "#E67E22",
+  "李煜东": "#3F4752",
+};
 
 let latestDashboardData = null;
 let manualFocusTags = null;
