@@ -9,6 +9,7 @@ const focusGroupCaption = document.getElementById("focus-group-caption");
 const focusMemberPicker = document.getElementById("focus-member-picker");
 const focusApplyButton = document.getElementById("focus-apply-button");
 const focusAutoButton = document.getElementById("focus-auto-button");
+const rangePicker = document.getElementById("range-picker");
 
 const metricMembers = document.getElementById("metric-members");
 const metricTotalFans = document.getElementById("metric-total-fans");
@@ -19,31 +20,59 @@ const fansChart = echarts.init(document.getElementById("fans-chart"));
 const focusChart = echarts.init(document.getElementById("focus-chart"));
 const updateGrowthChart = echarts.init(document.getElementById("update-growth-chart"));
 
+const MEMBER_COLORS = {};
+const FALLBACK_COLORS = [
+  "#0C7C59",
+  "#D97706",
+  "#5FAFBE",
+  "#9B8FE8",
+  "#E78FA7",
+  "#0047AB",
+  "#E67E22",
+  "#1AAE99",
+  "#B42318",
+  "#6B7280",
+];
+
 let latestDashboardData = null;
 let manualFocusTags = null;
 let manualUpdateGrowthTags = null;
 let updateGrowthInterval = 1;
-const MEMBER_COLORS = {
-  "杨博文": "#E78FA7",
-  "陈奕恒": "#9B8FE8",
-  "张桂源": "#D6C94A",
-  "王橹杰": "#5FAFBE",
-  "左奇函": "#0047AB",
-  "张函瑞": "#5F9E5F",
-  "陈浚铭": "#FF0000",
-  "陈思罕": "#1AAE99",
-  "张奕然": "#E67E22",
-};
+let selectedRange = "7d";
+
+function hashString(value) {
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = ((hash << 5) - hash) + value.charCodeAt(index);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
+function getMemberColor(tag) {
+  if (MEMBER_COLORS[tag]) return MEMBER_COLORS[tag];
+  return FALLBACK_COLORS[hashString(tag) % FALLBACK_COLORS.length];
+}
 
 function formatNumber(value) {
-  return new Intl.NumberFormat("zh-CN").format(value ?? 0);
+  return value == null ? "-" : new Intl.NumberFormat("zh-CN").format(value);
 }
 
 function formatDelta(value) {
-  const formatted = formatNumber(Math.abs(value ?? 0));
-  if ((value ?? 0) > 0) return `+${formatted}`;
-  if ((value ?? 0) < 0) return `-${formatted}`;
+  if (value == null) return "-";
+  const formatted = formatNumber(Math.abs(value));
+  if (value > 0) return `+${formatted}`;
+  if (value < 0) return `-${formatted}`;
   return "0";
+}
+
+function rangeLabel(rangeKey) {
+  return {
+    "24h": "24h",
+    "7d": "7d",
+    "30d": "30d",
+    "all": "all time",
+  }[rangeKey] || rangeKey;
 }
 
 function renderMetrics(data) {
@@ -69,24 +98,39 @@ function renderInsights(items) {
   });
 }
 
+function renderRankChangeBadge(rankChange) {
+  if (!rankChange) return "";
+  const direction = rankChange > 0 ? "up" : "down";
+  const symbol = rankChange > 0 ? "↑" : "↓";
+  return `<span class="rank-shift ${direction}">${symbol}${Math.abs(rankChange)}</span>`;
+}
+
 function renderRanking(items) {
   rankingBody.innerHTML = "";
   items.forEach((item, index) => {
-    const row = document.createElement("tr");
-    const recentClass = item.recent_growth < 0 ? "negative" : "positive";
+    const latestClass = (item.latest_growth ?? 0) < 0 ? "negative" : "positive";
     const totalClass = item.total_growth < 0 ? "negative" : "positive";
+    const samples24Class = (item.growth_24_samples ?? 0) < 0 ? "negative" : "positive";
+    const day24Class = (item.growth_24h ?? 0) < 0 ? "negative" : "positive";
     const gapClass = item.gap_to_previous == null ? "neutral" : "negative";
+    const row = document.createElement("tr");
 
     row.innerHTML = `
       <td><span class="rank-badge">${index + 1}</span></td>
-      <td>${item.tag}</td>
+      <td>
+        <div class="member-cell">
+          ${renderRankChangeBadge(item.rank_change)}
+          <span>${item.tag}</span>
+        </div>
+      </td>
       <td>${formatNumber(item.fans_num)}</td>
       <td class="${gapClass}">${item.gap_to_previous == null ? "-" : formatNumber(item.gap_to_previous)}</td>
       <td class="${totalClass}">${formatDelta(item.total_growth)}</td>
-      <td class="${recentClass}">${formatDelta(item.recent_growth)}</td>
+      <td class="${latestClass}">${formatDelta(item.latest_growth)}</td>
+      <td class="${samples24Class}">${formatDelta(item.growth_24_samples)}</td>
+      <td class="${day24Class}">${formatDelta(item.growth_24h)}</td>
       <td>${formatNumber(item.collect_num)}</td>
       <td>${formatNumber(item.like_num)}</td>
-      <td>${item.latest_time}</td>
     `;
     rankingBody.appendChild(row);
   });
@@ -134,8 +178,8 @@ function renderUpdateGrowthChart(data) {
     smooth: true,
     showSymbol: false,
     emphasis: { focus: "series" },
-    lineStyle: { width: 3, color: MEMBER_COLORS[tag] },
-    itemStyle: { color: MEMBER_COLORS[tag] },
+    lineStyle: { width: 3, color: getMemberColor(tag) },
+    itemStyle: { color: getMemberColor(tag) },
     data: rows.map((row) => row.deltas?.[tag] ?? null),
   }));
 
@@ -218,8 +262,8 @@ function lineSeries(source) {
     smooth: true,
     showSymbol: false,
     emphasis: { focus: "series" },
-    lineStyle: { width: 3, color: MEMBER_COLORS[series.name] },
-    itemStyle: { color: MEMBER_COLORS[series.name] },
+    lineStyle: { width: 3, color: getMemberColor(series.name) },
+    itemStyle: { color: getMemberColor(series.name) },
     data: series.data,
   }));
 }
@@ -247,6 +291,12 @@ function createChartBase() {
   };
 }
 
+function renderRangePicker(activeRange) {
+  rangePicker.querySelectorAll("button[data-range]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.range === activeRange);
+  });
+}
+
 function renderCharts(data) {
   fansChart.setOption({
     ...createChartBase(),
@@ -254,7 +304,7 @@ function renderCharts(data) {
       ...createChartBase().xAxis,
       data: data.charts.trend_labels || [],
     },
-    series: lineSeries(data.charts.fans_series),
+    series: lineSeries(data.charts.fans_series || []),
   }, true);
 
   const useManual = manualFocusTags && manualFocusTags.length;
@@ -266,8 +316,7 @@ function renderCharts(data) {
   if (useManual && focusSeries.length) {
     focusGroupCaption.textContent = `Manual focus: ${manualFocusTags.join(", ")}`;
   } else if (focusSummary && focusSeries.length) {
-    focusGroupCaption.textContent =
-      `Auto focus: ${focusSummary.tags.join(", ")}. Span: ${formatNumber(focusSummary.span)} fans.`;
+    focusGroupCaption.textContent = `Auto focus (${rangeLabel(data.meta.range)}): ${focusSummary.tags.join(", ")}. Span: ${formatNumber(focusSummary.span)} fans.`;
   } else {
     focusGroupCaption.textContent = "Not enough data to build a focus zoom view.";
   }
@@ -286,17 +335,17 @@ function renderCharts(data) {
     },
     series: lineSeries(focusSeries),
   }, true);
-
 }
 
 async function loadDashboard() {
   refreshStatus.textContent = "Syncing latest data";
   try {
-    const response = await fetch("/api/dashboard", { cache: "no-store" });
+    const response = await fetch(`/api/dashboard?range=${encodeURIComponent(selectedRange)}`, { cache: "no-store" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
     const data = await response.json();
     latestDashboardData = data;
+    renderRangePicker(data.meta.range || selectedRange);
     renderMetrics(data);
     renderInsights(data.insights || []);
     renderRanking(data.ranking || []);
@@ -304,7 +353,7 @@ async function loadDashboard() {
     renderUpdateGrowthChart(data);
     renderFocusPicker(data);
     renderCharts(data);
-    refreshStatus.textContent = "Data synced";
+    refreshStatus.textContent = `Data synced (${rangeLabel(data.meta.range || selectedRange)})`;
   } catch (error) {
     refreshStatus.textContent = "Load failed";
     insightsList.innerHTML = `<article class="insight-card warning"><h3>Connection failed</h3><p>${error.message}</p></article>`;
@@ -338,6 +387,13 @@ focusAutoButton.addEventListener("click", () => {
     renderFocusPicker(latestDashboardData);
     renderCharts(latestDashboardData);
   }
+});
+
+rangePicker.addEventListener("click", (event) => {
+  const button = event.target.closest("button[data-range]");
+  if (!button) return;
+  selectedRange = button.dataset.range;
+  loadDashboard();
 });
 
 refreshButton.addEventListener("click", loadDashboard);

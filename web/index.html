@@ -62,8 +62,17 @@
       </section>
 
       <section class="panel chart-panel full-span">
-        <div class="panel-header">
-          <h2>Total Fans Trend</h2>
+        <div class="panel-header stacked-header">
+          <div>
+            <h2>Total Fans Trend</h2>
+            <p class="panel-caption">Default chart window is 7 days. Switch to 24h, 30d, or all time when needed.</p>
+          </div>
+          <div id="range-picker" class="range-picker">
+            <button type="button" class="ghost-button" data-range="24h">24h</button>
+            <button type="button" class="ghost-button active" data-range="7d">7d</button>
+            <button type="button" class="ghost-button" data-range="30d">30d</button>
+            <button type="button" class="ghost-button" data-range="all">All</button>
+          </div>
         </div>
         <div id="fans-chart" class="chart"></div>
       </section>
@@ -87,8 +96,11 @@
       </section>
 
       <section class="panel ranking-panel full-span">
-        <div class="panel-header">
-          <h2>Ranking</h2>
+        <div class="panel-header stacked-header">
+          <div>
+            <h2>Ranking</h2>
+            <p class="panel-caption">Rank movement badges compare the current order with one hour ago.</p>
+          </div>
         </div>
         <div class="table-wrap">
           <table>
@@ -100,9 +112,10 @@
                 <th>Gap To Prev</th>
                 <th>Total Growth</th>
                 <th>Latest Growth</th>
+                <th>24 Samples</th>
+                <th>24 Hours</th>
                 <th>Collects</th>
                 <th>Likes</th>
-                <th>Sample Time</th>
               </tr>
             </thead>
             <tbody id="ranking-body"></tbody>
@@ -115,7 +128,7 @@
           <h2>Update Growth Trend</h2>
         </div>
         <div class="focus-picker">
-          <p class="focus-picker-label">Filter members in update table</p>
+          <p class="focus-picker-label">Filter members in update chart</p>
           <div id="update-growth-picker" class="focus-member-picker"></div>
         </div>
         <div class="focus-picker">
@@ -125,7 +138,6 @@
             <label class="member-chip"><input type="radio" name="update-interval" value="10"><span>Every 10</span></label>
             <label class="member-chip"><input type="radio" name="update-interval" value="50"><span>Every 50</span></label>
             <label class="member-chip"><input type="radio" name="update-interval" value="100"><span>Every 100</span></label>
-            <label class="member-chip"><input type="radio" name="update-interval" value="1000"><span>Every 1000</span></label>
           </div>
         </div>
         <div id="update-growth-chart" class="chart"></div>
